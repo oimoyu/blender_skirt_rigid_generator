@@ -588,7 +588,7 @@ class GeneratePanel(bpy.types.Panel):
         col.label(text="thickness")
         col.prop(context.scene, "rigid_thickness", text="")
         
-        layout.operator("object.create_rigid_from_guide_mesh", text="Generate Guid Mesh")
+        layout.operator("object.create_rigid_from_guide_mesh", text="Generate Rigid Body")
 
         
         

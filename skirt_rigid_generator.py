@@ -377,7 +377,7 @@ def create_rigid_from_guide_mesh(context):
         bpy.context.object.rigid_body_constraint.use_limit_ang_y = True
         bpy.context.object.rigid_body_constraint.use_limit_ang_z = True
         bpy.context.object.rigid_body_constraint.limit_ang_x_lower = -10/180*math.pi
-        bpy.context.object.rigid_body_constraint.limit_ang_x_upper = 0/180*math.pi
+        bpy.context.object.rigid_body_constraint.limit_ang_x_upper = 10/180*math.pi
         bpy.context.object.rigid_body_constraint.limit_ang_y_lower = 0
         bpy.context.object.rigid_body_constraint.limit_ang_y_upper = 0
 

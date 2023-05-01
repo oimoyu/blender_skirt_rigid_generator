@@ -152,11 +152,19 @@ def create_rigid_from_guide_mesh(context):
     width_factor = context.scene.rigid_width
     thickness_factor = context.scene.rigid_thickness
     rigid_damping = context.scene.rigid_damping
+    rigid_rad_angle_out = context.scene.rigid_rad_angle_out
+    rigid_rad_angle_in = context.scene.rigid_rad_angle_in
+    rigid_circ_angle = context.scene.rigid_circ_angle
+    angle_limit_type = context.scene.angle_limit_type
+    
     selected_objects = bpy.context.selected_objects
-        
+
     bpy.context.scene.frame_set(0)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
+    
+    if not selected_objects:
+        ShowMessageBox("No object selected", "error message", 'ERROR')
+        return 
     guide_mesh_obj = selected_objects[-1]
     
     if not guide_mesh_obj.get('is_guidemesh'):
@@ -371,15 +379,32 @@ def create_rigid_from_guide_mesh(context):
         j = int(re.search(r"joint_(\d+)_(\d+)", joint_obj.name).group(2))
 
         ramp_factor = j / (verticle_seg_num-1)
-
+        
+        if angle_limit_type == 'constant':
+            rigid_rad_angle_out_single = rigid_rad_angle_out / (verticle_seg_num-1)
+            rigid_rad_angle_in_single = rigid_rad_angle_in / (verticle_seg_num-1)
+            rigid_circ_angle_single = rigid_circ_angle / (verticle_seg_num-1)
+        elif angle_limit_type == 'linear':
+            const_n = (verticle_seg_num-1)
+            total_n = const_n + ( const_n * (const_n-1) ) / 2
+            current_weight = verticle_seg_num-1 - j
+            current_weight = j
+            rigid_rad_angle_out_single = rigid_rad_angle_out * current_weight / total_n
+            rigid_rad_angle_in_single = rigid_rad_angle_in * current_weight / total_n
+            rigid_circ_angle_single = rigid_circ_angle * current_weight / total_n
+        else:
+            raise Exception("unknow type")
+        
         bpy.ops.rigidbody.constraint_add(type='GENERIC_SPRING')
         bpy.context.object.rigid_body_constraint.use_limit_ang_x = True
         bpy.context.object.rigid_body_constraint.use_limit_ang_y = True
         bpy.context.object.rigid_body_constraint.use_limit_ang_z = True
-        bpy.context.object.rigid_body_constraint.limit_ang_x_lower = -10/180*math.pi
-        bpy.context.object.rigid_body_constraint.limit_ang_x_upper = 10/180*math.pi
+        bpy.context.object.rigid_body_constraint.limit_ang_x_lower = -rigid_circ_angle_single/180*math.pi
+        bpy.context.object.rigid_body_constraint.limit_ang_x_upper = rigid_circ_angle_single/180*math.pi
         bpy.context.object.rigid_body_constraint.limit_ang_y_lower = 0
         bpy.context.object.rigid_body_constraint.limit_ang_y_upper = 0
+        bpy.context.object.rigid_body_constraint.limit_ang_z_lower = -rigid_rad_angle_out_single/180*math.pi
+        bpy.context.object.rigid_body_constraint.limit_ang_z_upper = rigid_rad_angle_in_single/180*math.pi
 
         bpy.context.object.rigid_body_constraint.use_limit_lin_x = True
         bpy.context.object.rigid_body_constraint.use_limit_lin_y = True
@@ -390,6 +415,7 @@ def create_rigid_from_guide_mesh(context):
         bpy.context.object.rigid_body_constraint.limit_lin_y_upper = 0
         bpy.context.object.rigid_body_constraint.limit_lin_z_lower = 0
         bpy.context.object.rigid_body_constraint.limit_lin_z_upper = 0
+  
   
 
         bpy.context.object.rigid_body_constraint.object1 = rigid_obj_list[i*verticle_seg_num + j-1]
@@ -534,7 +560,7 @@ def create_rigid_from_guide_mesh(context):
 bl_info = {
     "name": "Skit Rigid Generator",
     "author": "Oimoyu",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (3, 2, 2),
     "location": "View3D > Sidebar > Skit Rigid Gen",
     "description": "generate rigid body for skirt",
@@ -552,6 +578,7 @@ class GeneratePanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         
+        
         col = layout.column()
         split = col.split(factor=0.5)
         # Add input boxes to the first column
@@ -562,11 +589,9 @@ class GeneratePanel(bpy.types.Panel):
         col = split.column()
         col.label(text="V num")
         col.prop(context.scene, "v_num", text="")
-
         layout.operator("object.create_guide_mesh", text="Generate Guid Mesh")
-        
         layout.separator()  # Adds a horizontal line
-
+        
         col = layout.column()
         split = col.split(factor=0.5)
         # Add input boxes to the first column
@@ -576,7 +601,6 @@ class GeneratePanel(bpy.types.Panel):
         col = split.column()
         col.label(text="Damping")
         col.prop(context.scene, "rigid_damping", text="", slider=True)
-        
         
         col = layout.column()
         split = col.split(factor=0.5)
@@ -588,9 +612,25 @@ class GeneratePanel(bpy.types.Panel):
         col.label(text="thickness")
         col.prop(context.scene, "rigid_thickness", text="")
         
-        layout.operator("object.create_rigid_from_guide_mesh", text="Generate Rigid Body")
-
+        layout.separator()  # Adds a horizontal line
         
+        row = layout.row()
+        row.label(text="angle limit (accumulated)")
+        row = layout.row()
+        row.prop(context.scene, "rigid_circ_angle", text="circ angle")
+        row = layout.row()
+        row.prop(context.scene, "rigid_rad_angle_in", text="radial angle in")
+        row = layout.row()
+        row.prop(context.scene, "rigid_rad_angle_out", text="radial angle out")
+        
+        row = layout.row()
+        row.label(text="angle limit type")
+        row = layout.row()
+        row.prop(context.scene, "angle_limit_type",expand=True)
+        
+        layout.separator()  # Adds a horizontal line
+        
+        layout.operator("object.create_rigid_from_guide_mesh", text="Generate Rigid Body")
         
 class CreateGuideMeshOperator(bpy.types.Operator):
     bl_idname = "object.create_guide_mesh"
@@ -647,7 +687,17 @@ def register():
     bpy.types.Scene.rigid_mass = bpy.props.FloatProperty(name="rigid mass",min=0.001,default=1.0)
     bpy.types.Scene.rigid_damping = bpy.props.FloatProperty(name="rigid damping",default=0.5,min=0,max=1)
 
+    bpy.types.Scene.rigid_rad_angle_out = bpy.props.FloatProperty(name="radial angle out",min=0,max=180,default=180, description="Angle limit outward along the radial direction")
+    bpy.types.Scene.rigid_rad_angle_in = bpy.props.FloatProperty(name="radial angle in", min=0,max=180,default=45, description="Angle limit inward along the radial direction")
+    bpy.types.Scene.rigid_circ_angle = bpy.props.FloatProperty(name="circ angle",min=0,max=90,default=45, description="Angular limits along the circumferential direction")
 
+    bpy.types.Scene.angle_limit_type = bpy.props.EnumProperty(name="angle_limit_type", items=(            
+        ("constant", "constant", ""),
+        ("linear", "linear", ""),
+        ),
+        default='constant',
+        description="Angle limit change type"
+    )
 
     bpy.utils.register_class(ModifyPanel)
 
@@ -665,11 +715,16 @@ def unregister():
     del bpy.types.Scene.rigid_width
     del bpy.types.Scene.rigid_thickness
     
+    del bpy.types.Scene.rigid_rad_angle_out
+    del bpy.types.Scene.rigid_rad_angle_in
+    del bpy.types.Scene.rigid_circ_angle
+    
+    del bpy.types.Scene.angle_limit_type
+    
     bpy.utils.unregister_class(ModifyPanel)
     
 if __name__ == "__main__":
     register()
-
 
 
 

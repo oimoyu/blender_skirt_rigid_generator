@@ -327,30 +327,8 @@ def create_rigid_from_guide_mesh(context):
             rigid_obj.matrix_world = rotation_matrix.to_4x4() @ rigid_obj.matrix_world
             
             rigid_obj.location = mid_coord
-            
-    for joint_obj in joint_v_obj_list:
-        joint_obj.parent = armature_obj
 
-    # set rigid obj parent to root bone
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.ops.object.select_all(action='DESELECT')
-    armature_obj.select_set(True)
-
-    armature_obj.data.bones.active = armature_obj.pose.bones['root'].bone
-    # update other wise crash
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
-    # parent pin part to root  
-    for rigid_obj in rigid_obj_list:
-        bpy.ops.object.select_all(action='DESELECT')
-        rigid_obj.select_set(True)
-        armature_obj.select_set(True)
-        bpy.context.view_layer.objects.active = armature_obj
-
-        bpy.ops.object.parent_set(type='BONE', keep_transform=True)
-
-    # add rigid_body
+    # add rigid property
     bpy.ops.object.mode_set(mode='OBJECT')
     for rigid_obj in rigid_obj_list:
         bpy.ops.object.select_all(action='DESELECT')
@@ -437,7 +415,6 @@ def create_rigid_from_guide_mesh(context):
             constraint.target = rigid_obj
 
 
-
     # add horizonal constraint 
     # get edit bone
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -505,9 +482,29 @@ def create_rigid_from_guide_mesh(context):
 
             joint_obj.location = mid_coord
 
-
+    # parent joint
+    for joint_obj in joint_v_obj_list:
+        joint_obj.parent = armature_obj
+        constraint = joint_obj.constraints.new('CHILD_OF')
+        constraint.target = armature_obj
+        constraint.subtarget = 'root'
+        constraint.set_inverse_pending = True
+        
     for joint_obj in joint_h_obj_list:
         joint_obj.parent = armature_obj
+        constraint = joint_obj.constraints.new('CHILD_OF')
+        constraint.target = armature_obj
+        constraint.subtarget = 'root'
+        constraint.set_inverse_pending = True
+        
+    # parent rigid
+    for rigid_obj in rigid_obj_list:
+        rigid_obj.parent = armature_obj
+        constraint = rigid_obj.constraints.new('CHILD_OF')
+        constraint.target = armature_obj
+        constraint.subtarget = 'root'
+        constraint.set_inverse_pending = True
+
         
     # add rigid_constraint
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -725,7 +722,6 @@ def unregister():
     
 if __name__ == "__main__":
     register()
-
 
 
 

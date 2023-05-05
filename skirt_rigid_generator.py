@@ -156,6 +156,9 @@ def create_rigid_from_guide_mesh(context):
     rigid_rad_angle_in = context.scene.rigid_rad_angle_in
     rigid_circ_angle = context.scene.rigid_circ_angle
     angle_limit_type = context.scene.angle_limit_type
+    enable_horizontal_spring = context.scene.enable_horizontal_spring
+    horizontal_spring_stiffness = context.scene.horizontal_spring_stiffness
+    horizontal_spring_damping = context.scene.horizontal_spring_damping
     
     selected_objects = bpy.context.selected_objects
 
@@ -522,7 +525,16 @@ def create_rigid_from_guide_mesh(context):
         bpy.context.object.rigid_body_constraint.object1 = rigid_obj_list[i*verticle_seg_num + j]
         bpy.context.object.rigid_body_constraint.object2 = rigid_obj_list[r_i*verticle_seg_num + r_j]
 
-
+        if enable_horizontal_spring:
+            # Horizontal spring
+            bpy.context.object.rigid_body_constraint.use_spring_x = True
+            bpy.context.object.rigid_body_constraint.use_spring_y = True
+            bpy.context.object.rigid_body_constraint.use_spring_z = True
+            bpy.context.object.rigid_body_constraint.spring_stiffness_x = horizontal_spring_stiffness
+            bpy.context.object.rigid_body_constraint.spring_stiffness_z = horizontal_spring_stiffness
+            bpy.context.object.rigid_body_constraint.spring_damping_x = horizontal_spring_damping
+            bpy.context.object.rigid_body_constraint.spring_damping_z = horizontal_spring_damping
+            
     collection_name = "rigid&joint"
     if collection_name in bpy.data.collections:
         rigid_joint_collection = bpy.data.collections[collection_name]
@@ -557,7 +569,7 @@ def create_rigid_from_guide_mesh(context):
 bl_info = {
     "name": "Skit Rigid Generator",
     "author": "Oimoyu",
-    "version": (1, 1),
+    "version": (1, 2),
     "blender": (3, 2, 2),
     "location": "View3D > Sidebar > Skit Rigid Gen",
     "description": "generate rigid body for skirt",
@@ -603,28 +615,34 @@ class GeneratePanel(bpy.types.Panel):
         split = col.split(factor=0.5)
         # Add input boxes to the first column
         col = split.column()
-        col.label(text="width")
+        col.label(text="Width")
         col.prop(context.scene, "rigid_width", text="")
         col = split.column()
-        col.label(text="thickness")
+        col.label(text="Thickness")
         col.prop(context.scene, "rigid_thickness", text="")
-        
         layout.separator()  # Adds a horizontal line
         
-        row = layout.row()
-        row.label(text="angle limit (accumulated)")
-        row = layout.row()
-        row.prop(context.scene, "rigid_circ_angle", text="circ angle")
-        row = layout.row()
-        row.prop(context.scene, "rigid_rad_angle_in", text="radial angle in")
-        row = layout.row()
-        row.prop(context.scene, "rigid_rad_angle_out", text="radial angle out")
+        layout.prop(context.scene, "enable_angle_limit")
+        if context.scene.enable_angle_limit:
+            row = layout.row()
+            row.label(text="Angle Limit (accumulated)")
+            row = layout.row()
+            row.prop(context.scene, "rigid_circ_angle", text="Circ Angle")
+            row = layout.row()
+            row.prop(context.scene, "rigid_rad_angle_in", text="Radial Angle In")
+            row = layout.row()
+            row.prop(context.scene, "rigid_rad_angle_out", text="Radial Angle Out")
+            
+            row = layout.row()
+            row.label(text="Angle Limit Type")
+            row = layout.row()
+            row.prop(context.scene, "angle_limit_type",expand=True)
+            layout.separator()  # Adds a horizontal line
         
-        row = layout.row()
-        row.label(text="angle limit type")
-        row = layout.row()
-        row.prop(context.scene, "angle_limit_type",expand=True)
-        
+        layout.prop(context.scene, "enable_horizontal_spring")
+        if context.scene.enable_horizontal_spring:
+            layout.prop(context.scene, "horizontal_spring_stiffness")
+            layout.prop(context.scene, "horizontal_spring_damping")
         layout.separator()  # Adds a horizontal line
         
         layout.operator("object.create_rigid_from_guide_mesh", text="Generate Rigid Body")
@@ -681,20 +699,25 @@ def register():
     bpy.types.Scene.rigid_width = bpy.props.FloatProperty(name="rigid width",min=0.001,default=1)
     bpy.types.Scene.rigid_thickness = bpy.props.FloatProperty(name="rigid thickness",min=0.001,default=1)
     
-    bpy.types.Scene.rigid_mass = bpy.props.FloatProperty(name="rigid mass",min=0.001,default=1.0)
-    bpy.types.Scene.rigid_damping = bpy.props.FloatProperty(name="rigid damping",default=0.5,min=0,max=1)
+    bpy.types.Scene.rigid_mass = bpy.props.FloatProperty(name="Rigid Mass",min=0.001,default=1.0)
+    bpy.types.Scene.rigid_damping = bpy.props.FloatProperty(name="Rigid Damping",default=0.5,min=0,max=1)
 
-    bpy.types.Scene.rigid_rad_angle_out = bpy.props.FloatProperty(name="radial angle out",min=0,max=180,default=180, description="Angle limit outward along the radial direction")
-    bpy.types.Scene.rigid_rad_angle_in = bpy.props.FloatProperty(name="radial angle in", min=0,max=180,default=45, description="Angle limit inward along the radial direction")
-    bpy.types.Scene.rigid_circ_angle = bpy.props.FloatProperty(name="circ angle",min=0,max=90,default=45, description="Angular limits along the circumferential direction")
+    bpy.types.Scene.rigid_rad_angle_out = bpy.props.FloatProperty(name="Radial Angle Out",min=0,max=180,default=180, description="Angle limit outward along the radial direction")
+    bpy.types.Scene.rigid_rad_angle_in = bpy.props.FloatProperty(name="Radial Angle In", min=0,max=180,default=45, description="Angle limit inward along the radial direction")
+    bpy.types.Scene.rigid_circ_angle = bpy.props.FloatProperty(name="Circ Angle",min=0,max=90,default=45, description="Angular limits along the circumferential direction")
+    bpy.types.Scene.enable_angle_limit = bpy.props.BoolProperty(name="Enable Angle Limit",description="Enable Angle Limit",default=False)
 
-    bpy.types.Scene.angle_limit_type = bpy.props.EnumProperty(name="angle_limit_type", items=(            
-        ("constant", "constant", ""),
-        ("linear", "linear", ""),
+    bpy.types.Scene.angle_limit_type = bpy.props.EnumProperty(name="Angle Limit Type", items=(            
+        ("constant", "Constant", ""),
+        ("linear", "Linear", ""),
         ),
         default='constant',
         description="Angle limit change type"
     )
+
+    bpy.types.Scene.enable_horizontal_spring = bpy.props.BoolProperty(name="Enable Horizontal Spring",description="Enable Horizontal Spring",default=False)
+    bpy.types.Scene.horizontal_spring_stiffness = bpy.props.FloatProperty(name="sping stiffness",min=0,default=1000, description="Horizontal Spring Stiffness")
+    bpy.types.Scene.horizontal_spring_damping = bpy.props.FloatProperty(name="sping damping",min=0,default=1000, description="Horizontal Spring Damping")
 
     bpy.utils.register_class(ModifyPanel)
 
@@ -715,14 +738,16 @@ def unregister():
     del bpy.types.Scene.rigid_rad_angle_out
     del bpy.types.Scene.rigid_rad_angle_in
     del bpy.types.Scene.rigid_circ_angle
-    
     del bpy.types.Scene.angle_limit_type
+    
+    del bpy.types.Scene.enable_horizontal_spring
+    del bpy.types.Scene.horizontal_spring_stiffness
+    del bpy.types.Scene.horizontal_spring_damping
     
     bpy.utils.unregister_class(ModifyPanel)
     
 if __name__ == "__main__":
     register()
-
 
 
 

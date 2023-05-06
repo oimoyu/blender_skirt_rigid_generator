@@ -695,13 +695,6 @@ class GeneratePanel(bpy.types.Panel):
         
         layout.operator("skirt_rigid_gen.create_rigid_from_guide_mesh", text="Generate Rigid Body")
 
-class EnableSelfCollision(bpy.types.Operator):
-    bl_idname = "skirt_rigid_gen.enable_self_collision"
-    bl_label = "enable self_collision"
-    def execute(self, context):
-        context.scene.skirt_rigid_panel_settings.disable_self_collision = False
-        return {'FINISHED'}
-
 class CreateGuideMeshOperator(bpy.types.Operator):
     bl_idname = "skirt_rigid_gen.create_guide_mesh"
     bl_label = "create guide mesh"

@@ -62,10 +62,11 @@ def paint_pin_weight(conte):
 
 
 def create_guide_mesh(context):
-    circle_seg_num = context.scene.h_num
+    settings = context.scene.skirt_rigid_panel_settings
+    circle_seg_num = settings.h_num
     radius = 1.0
     height = 1
-    verticle_seg_num = context.scene.v_num
+    verticle_seg_num = settings.v_num
 
     vertex_num = circle_seg_num * (verticle_seg_num+1)
     
@@ -149,17 +150,20 @@ def create_guide_mesh(context):
 
 
 def create_rigid_from_guide_mesh(context):
-    width_factor = context.scene.rigid_width
-    thickness_factor = context.scene.rigid_thickness
-    rigid_damping = context.scene.rigid_damping
-    rigid_rad_angle_out = context.scene.rigid_rad_angle_out
-    rigid_rad_angle_in = context.scene.rigid_rad_angle_in
-    rigid_circ_angle = context.scene.rigid_circ_angle
-    angle_limit_type = context.scene.angle_limit_type
-    enable_horizontal_spring = context.scene.enable_horizontal_spring
-    horizontal_spring_stiffness = context.scene.horizontal_spring_stiffness
-    horizontal_spring_damping = context.scene.horizontal_spring_damping
-    
+    settings = context.scene.skirt_rigid_panel_settings
+    width_factor = settings.rigid_width
+    thickness_factor = settings.rigid_thickness
+    rigid_mass = settings.rigid_mass
+    rigid_damping = settings.rigid_damping
+    rigid_rad_angle_out = settings.rigid_rad_angle_out
+    rigid_rad_angle_in = settings.rigid_rad_angle_in
+    rigid_circ_angle = settings.rigid_circ_angle
+    angle_limit_type = settings.angle_limit_type
+    enable_horizontal_spring = settings.enable_horizontal_spring
+    horizontal_spring_stiffness = settings.horizontal_spring_stiffness
+    horizontal_spring_damping = settings.horizontal_spring_damping
+    disable_self_collision = settings.disable_self_collision
+        
     selected_objects = bpy.context.selected_objects
 
     bpy.context.scene.frame_set(0)
@@ -343,13 +347,14 @@ def create_rigid_from_guide_mesh(context):
             rigid_obj.rigid_body.kinematic = True
         else:
             bpy.ops.rigidbody.objects_add(type='ACTIVE')
-
+            
+        rigid_obj.rigid_body.mass = rigid_mass
         rigid_obj.rigid_body.linear_damping = rigid_damping
         rigid_obj.rigid_body.angular_damping = rigid_damping
 
 
 
-    # add rigid_constraint
+    # add vertical rigid_constraint
     bpy.ops.object.mode_set(mode='OBJECT')
     for joint_obj in joint_v_obj_list:
         bpy.ops.object.select_all(action='DESELECT')
@@ -481,10 +486,29 @@ def create_rigid_from_guide_mesh(context):
             Z = Vector((0, 0, 1))  # z-axis
             rotation_matrix = mathutils.Matrix((mid_x, mid_y, mid_z)).to_3x3().transposed() @ mathutils.Matrix((X, Y, Z)).to_3x3()
             joint_obj.matrix_world = rotation_matrix.to_4x4() @ joint_obj.matrix_world
-            
 
             joint_obj.location = mid_coord
 
+
+    # create non collision joint
+    nc_joint_obj_list = []
+    print(disable_self_collision)
+    if disable_self_collision:
+        for i1 in range(len(line_vertex_list)):
+            for j1 in range(len(vertex_list)-1):
+                for i2 in range(len(line_vertex_list)):
+                    for j2 in range(len(vertex_list)-1):
+                        # create joint
+                        joint_obj = bpy.data.objects.new(f"nc_{i1}_{j1}&{i2}_{j2}", None)
+                        nc_joint_obj_list.append(joint_obj)
+                        
+                        joint_obj.empty_display_type = 'ARROWS'
+                        joint_obj.empty_display_size = 0.1
+                        
+                        scene = bpy.context.scene
+                        scene.collection.objects.link(joint_obj)
+            
+    
     # parent joint
     for joint_obj in joint_v_obj_list:
         joint_obj.parent = armature_obj
@@ -500,6 +524,9 @@ def create_rigid_from_guide_mesh(context):
         constraint.subtarget = 'root'
         constraint.set_inverse_pending = True
         
+    for joint_obj in nc_joint_obj_list:
+        joint_obj.parent = armature_obj
+        
     # parent rigid
     for rigid_obj in rigid_obj_list:
         rigid_obj.parent = armature_obj
@@ -508,8 +535,21 @@ def create_rigid_from_guide_mesh(context):
         constraint.subtarget = 'root'
         constraint.set_inverse_pending = True
 
+    # add non collision rigid_constraint
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for joint_obj in nc_joint_obj_list:
+        bpy.ops.object.select_all(action='DESELECT')
+        rigid_obj.select_set(True)
+        bpy.context.view_layer.objects.active = joint_obj
+        i1 = int(re.search(r"nc_(\d+)_(\d+)", joint_obj.name).group(1))
+        j1 = int(re.search(r"nc_(\d+)_(\d+)", joint_obj.name).group(2))
+        i2 = int(re.search(r"nc_\d+_\d+&(\d+)_(\d+)", joint_obj.name).group(1))
+        j2 = int(re.search(r"nc_\d+_\d+&(\d+)_(\d+)", joint_obj.name).group(2))
+        bpy.ops.rigidbody.constraint_add(type='GENERIC')
+        bpy.context.object.rigid_body_constraint.object1 = rigid_obj_list[i1*verticle_seg_num + j1]
+        bpy.context.object.rigid_body_constraint.object2 = rigid_obj_list[i2*verticle_seg_num + j2]
         
-    # add rigid_constraint
+    # add horizontal rigid_constraint
     bpy.ops.object.mode_set(mode='OBJECT')
     for joint_obj in joint_h_obj_list:
         bpy.ops.object.select_all(action='DESELECT')
@@ -534,7 +574,7 @@ def create_rigid_from_guide_mesh(context):
             bpy.context.object.rigid_body_constraint.spring_stiffness_z = horizontal_spring_stiffness
             bpy.context.object.rigid_body_constraint.spring_damping_x = horizontal_spring_damping
             bpy.context.object.rigid_body_constraint.spring_damping_z = horizontal_spring_damping
-            
+    
     collection_name = "rigid&joint"
     if collection_name in bpy.data.collections:
         rigid_joint_collection = bpy.data.collections[collection_name]
@@ -552,6 +592,11 @@ def create_rigid_from_guide_mesh(context):
         master_collection.objects.unlink(joint_obj)
         
     for joint_obj in joint_h_obj_list:
+        joint_obj.hide_set(True)
+        rigid_joint_collection.objects.link(joint_obj)
+        master_collection.objects.unlink(joint_obj)
+        
+    for joint_obj in nc_joint_obj_list:
         joint_obj.hide_set(True)
         rigid_joint_collection.objects.link(joint_obj)
         master_collection.objects.unlink(joint_obj)
@@ -586,19 +631,19 @@ class GeneratePanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        
+        settings = context.scene.skirt_rigid_panel_settings
         
         col = layout.column()
         split = col.split(factor=0.5)
         # Add input boxes to the first column
         col = split.column()
         col.label(text="H num")
-        col.prop(context.scene, "h_num", text="")
+        col.prop(settings, "h_num", text="")
         
         col = split.column()
         col.label(text="V num")
-        col.prop(context.scene, "v_num", text="")
-        layout.operator("object.create_guide_mesh", text="Generate Guid Mesh")
+        col.prop(settings, "v_num", text="")
+        layout.operator("skirt_rigid_gen.create_guide_mesh", text="Generate Guid Mesh")
         layout.separator()  # Adds a horizontal line
         
         col = layout.column()
@@ -606,49 +651,59 @@ class GeneratePanel(bpy.types.Panel):
         # Add input boxes to the first column
         col = split.column()
         col.label(text="Mass(kg)")
-        col.prop(context.scene, "rigid_mass", text="")
+        col.prop(settings, "rigid_mass", text="")
         col = split.column()
         col.label(text="Damping")
-        col.prop(context.scene, "rigid_damping", text="", slider=True)
+        col.prop(settings, "rigid_damping", text="", slider=True)
         
         col = layout.column()
         split = col.split(factor=0.5)
         # Add input boxes to the first column
         col = split.column()
         col.label(text="Width")
-        col.prop(context.scene, "rigid_width", text="")
+        col.prop(settings, "rigid_width", text="")
         col = split.column()
         col.label(text="Thickness")
-        col.prop(context.scene, "rigid_thickness", text="")
+        col.prop(settings, "rigid_thickness", text="")
         layout.separator()  # Adds a horizontal line
         
-        layout.prop(context.scene, "enable_angle_limit")
-        if context.scene.enable_angle_limit:
+        if settings.h_num * settings.v_num<=32:
+            layout.prop(settings, "disable_self_collision")
+
+        layout.prop(settings, "enable_angle_limit")
+        if settings.enable_angle_limit:
             row = layout.row()
             row.label(text="Angle Limit (accumulated)")
             row = layout.row()
-            row.prop(context.scene, "rigid_circ_angle", text="Circ Angle")
+            row.prop(settings, "rigid_circ_angle", text="Circ Angle")
             row = layout.row()
-            row.prop(context.scene, "rigid_rad_angle_in", text="Radial Angle In")
+            row.prop(settings, "rigid_rad_angle_in", text="Radial Angle In")
             row = layout.row()
-            row.prop(context.scene, "rigid_rad_angle_out", text="Radial Angle Out")
+            row.prop(settings, "rigid_rad_angle_out", text="Radial Angle Out")
             
             row = layout.row()
             row.label(text="Angle Limit Type")
             row = layout.row()
-            row.prop(context.scene, "angle_limit_type",expand=True)
+            row.prop(settings, "angle_limit_type",expand=True)
             layout.separator()  # Adds a horizontal line
         
-        layout.prop(context.scene, "enable_horizontal_spring")
-        if context.scene.enable_horizontal_spring:
-            layout.prop(context.scene, "horizontal_spring_stiffness")
-            layout.prop(context.scene, "horizontal_spring_damping")
+        layout.prop(settings, "enable_horizontal_spring")
+        if settings.enable_horizontal_spring:
+            layout.prop(settings, "horizontal_spring_stiffness")
+            layout.prop(settings, "horizontal_spring_damping")
         layout.separator()  # Adds a horizontal line
         
-        layout.operator("object.create_rigid_from_guide_mesh", text="Generate Rigid Body")
-        
+        layout.operator("skirt_rigid_gen.create_rigid_from_guide_mesh", text="Generate Rigid Body")
+
+class EnableSelfCollision(bpy.types.Operator):
+    bl_idname = "skirt_rigid_gen.enable_self_collision"
+    bl_label = "enable self_collision"
+    def execute(self, context):
+        context.scene.skirt_rigid_panel_settings.disable_self_collision = False
+        return {'FINISHED'}
+
 class CreateGuideMeshOperator(bpy.types.Operator):
-    bl_idname = "object.create_guide_mesh"
+    bl_idname = "skirt_rigid_gen.create_guide_mesh"
     bl_label = "create guide mesh"
 
     def execute(self, context):
@@ -656,7 +711,7 @@ class CreateGuideMeshOperator(bpy.types.Operator):
         return {'FINISHED'}
     
 class CreateRigidFromGuideMeshOperator(bpy.types.Operator):
-    bl_idname = "object.create_rigid_from_guide_mesh"
+    bl_idname = "skirt_rigid_gen.create_rigid_from_guide_mesh"
     bl_label = "create rigid from guide mesh"
 
     def execute(self, context):
@@ -664,14 +719,12 @@ class CreateRigidFromGuideMeshOperator(bpy.types.Operator):
         return {'FINISHED'}
     
 class PaintPinWeightOperator(bpy.types.Operator):
-    bl_idname = "object.paint_pin_weight"
+    bl_idname = "skirt_rigid_gen.paint_pin_weight"
     bl_label = "Paint Pin Weight"
     def execute(self, context):
         paint_pin_weight(context)
         return {'FINISHED'}
     
-    
-
 class ModifyPanel(bpy.types.Panel):
     """Creates a panel in the 3D Viewport"""
     bl_label = "Modify"
@@ -682,32 +735,29 @@ class ModifyPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        layout.operator("object.paint_pin_weight", text="Paint Pin Weight")
+        layout.operator("skirt_rigid_gen.paint_pin_weight", text="Paint Pin Weight")
+
+def update_disable_self_collision(self,context):
+    if self.v_num * self.h_num > 32:
+        self.disable_self_collision = False
+
         
-        
+class SkirtRigidGenPanelSettings(bpy.types.PropertyGroup):
+    h_num : bpy.props.IntProperty(name="horizonal segment number",min=3,default=5,update=update_disable_self_collision)
+    v_num : bpy.props.IntProperty(name="vertical segment number",min=2,default=5,update=update_disable_self_collision)
     
+    rigid_width : bpy.props.FloatProperty(name="rigid width",min=0.001,default=1)
+    rigid_thickness : bpy.props.FloatProperty(name="rigid thickness",min=0.001,default=1)
     
-def register():
-    bpy.utils.register_class(GeneratePanel)
-    bpy.utils.register_class(CreateGuideMeshOperator)
-    bpy.utils.register_class(CreateRigidFromGuideMeshOperator)
-    bpy.utils.register_class(PaintPinWeightOperator)
+    rigid_mass : bpy.props.FloatProperty(name="Rigid Mass",min=0.001,default=1.0)
+    rigid_damping : bpy.props.FloatProperty(name="Rigid Damping",default=0.5,min=0,max=1)
 
-    bpy.types.Scene.h_num = bpy.props.IntProperty(name="horizonal segment number",min=3,default=5)
-    bpy.types.Scene.v_num = bpy.props.IntProperty(name="vertical segment number",min=2,default=5)
-    
-    bpy.types.Scene.rigid_width = bpy.props.FloatProperty(name="rigid width",min=0.001,default=1)
-    bpy.types.Scene.rigid_thickness = bpy.props.FloatProperty(name="rigid thickness",min=0.001,default=1)
-    
-    bpy.types.Scene.rigid_mass = bpy.props.FloatProperty(name="Rigid Mass",min=0.001,default=1.0)
-    bpy.types.Scene.rigid_damping = bpy.props.FloatProperty(name="Rigid Damping",default=0.5,min=0,max=1)
+    rigid_rad_angle_out : bpy.props.FloatProperty(name="Radial Angle Out",min=0,max=180,default=180, description="Angle limit outward along the radial direction")
+    rigid_rad_angle_in : bpy.props.FloatProperty(name="Radial Angle In", min=0,max=180,default=45, description="Angle limit inward along the radial direction")
+    rigid_circ_angle : bpy.props.FloatProperty(name="Circ Angle",min=0,max=90,default=45, description="Angular limits along the circumferential direction")
+    enable_angle_limit : bpy.props.BoolProperty(name="Enable Angle Limit",description="Enable Angle Limit",default=False)
 
-    bpy.types.Scene.rigid_rad_angle_out = bpy.props.FloatProperty(name="Radial Angle Out",min=0,max=180,default=180, description="Angle limit outward along the radial direction")
-    bpy.types.Scene.rigid_rad_angle_in = bpy.props.FloatProperty(name="Radial Angle In", min=0,max=180,default=45, description="Angle limit inward along the radial direction")
-    bpy.types.Scene.rigid_circ_angle = bpy.props.FloatProperty(name="Circ Angle",min=0,max=90,default=45, description="Angular limits along the circumferential direction")
-    bpy.types.Scene.enable_angle_limit = bpy.props.BoolProperty(name="Enable Angle Limit",description="Enable Angle Limit",default=False)
-
-    bpy.types.Scene.angle_limit_type = bpy.props.EnumProperty(name="Angle Limit Type", items=(            
+    angle_limit_type : bpy.props.EnumProperty(name="Angle Limit Type", items=(            
         ("constant", "Constant", ""),
         ("linear", "Linear", ""),
         ),
@@ -715,9 +765,24 @@ def register():
         description="Angle limit change type"
     )
 
-    bpy.types.Scene.enable_horizontal_spring = bpy.props.BoolProperty(name="Enable Horizontal Spring",description="Enable Horizontal Spring",default=False)
-    bpy.types.Scene.horizontal_spring_stiffness = bpy.props.FloatProperty(name="sping stiffness",min=0,default=1000, description="Horizontal Spring Stiffness")
-    bpy.types.Scene.horizontal_spring_damping = bpy.props.FloatProperty(name="sping damping",min=0,default=1000, description="Horizontal Spring Damping")
+    enable_horizontal_spring : bpy.props.BoolProperty(name="Enable Horizontal Spring",description="Enable Horizontal Spring",default=False)
+    horizontal_spring_stiffness : bpy.props.FloatProperty(name="sping stiffness",min=0,default=1000, description="Horizontal Spring Stiffness")
+    horizontal_spring_damping : bpy.props.FloatProperty(name="sping damping",min=0,default=1000, description="Horizontal Spring Damping")
+    
+    disable_self_collision : bpy.props.BoolProperty(
+    name="Disable Self Collistion",default=False, description="This option can only be enabled when the number of rigid bodies is less than 32")
+
+    
+    
+def register():
+    bpy.utils.register_class(SkirtRigidGenPanelSettings)
+    # Add the property group to bpy.types.Scene using a PointerProperty
+    bpy.types.Scene.skirt_rigid_panel_settings = bpy.props.PointerProperty(type=SkirtRigidGenPanelSettings)
+
+    bpy.utils.register_class(GeneratePanel)
+    bpy.utils.register_class(CreateGuideMeshOperator)
+    bpy.utils.register_class(CreateRigidFromGuideMeshOperator)
+    bpy.utils.register_class(PaintPinWeightOperator)
 
     bpy.utils.register_class(ModifyPanel)
 
@@ -728,27 +793,12 @@ def unregister():
     bpy.utils.unregister_class(CreateRigidFromGuideMeshOperator)
     bpy.utils.unregister_class(PaintPinWeightOperator)
     
-    del bpy.types.Scene.rigid_mass
-    del bpy.types.Scene.rigid_damping
-    del bpy.types.Scene.h_num
-    del bpy.types.Scene.v_num
-    del bpy.types.Scene.rigid_width
-    del bpy.types.Scene.rigid_thickness
-    
-    del bpy.types.Scene.rigid_rad_angle_out
-    del bpy.types.Scene.rigid_rad_angle_in
-    del bpy.types.Scene.rigid_circ_angle
-    del bpy.types.Scene.angle_limit_type
-    
-    del bpy.types.Scene.enable_horizontal_spring
-    del bpy.types.Scene.horizontal_spring_stiffness
-    del bpy.types.Scene.horizontal_spring_damping
+    del bpy.types.Scene.skirt_rigid_panel_settings
     
     bpy.utils.unregister_class(ModifyPanel)
     
 if __name__ == "__main__":
     register()
-
 
 
 

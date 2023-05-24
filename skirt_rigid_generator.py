@@ -143,6 +143,8 @@ def create_guide_mesh(context):
     obj = bpy.context.object
     obj["is_guidemesh"] = True
 
+    obj.display_type = 'WIRE'
+    obj.show_in_front = True
     
     bpy.ops.object.mode_set(mode='OBJECT')
     obj.select_set(True)
@@ -199,7 +201,9 @@ def create_rigid_from_guide_mesh(context):
     armature_obj = bpy.data.objects.new('Armature_cloth', armature)
     # Add the armature object to the scene
     bpy.context.scene.collection.objects.link(armature_obj)
-
+    
+    armature_obj.display_type = 'WIRE'
+    armature_obj.show_in_front = True
 
     # add bone, and rotate
     # Set the armature object as the active object
@@ -304,6 +308,9 @@ def create_rigid_from_guide_mesh(context):
             mesh = bpy.data.meshes.new(f"r_{i}_{j}_mesh")
             # Create a new cuboid object
             rigid_obj = bpy.data.objects.new(f"r_{i}_{j}", mesh)
+            
+            rigid_obj.display_type = 'WIRE'
+            rigid_obj.show_in_front = True
             
             rigid_obj_list.append(rigid_obj)
             
@@ -792,7 +799,6 @@ def unregister():
     
 if __name__ == "__main__":
     register()
-
 
 
 

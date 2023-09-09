@@ -6,7 +6,7 @@
 
 #### Blender rigid body simulation is unstable, it will crash in an indeterminate way when undo(ctrl+z) or animation playback(shift+space), please save the file before doing these two operations
 
-this script is written and tested in blender 3.2.2
+this script is written and tested in blender 3.6.2
 
 ## How to use
 

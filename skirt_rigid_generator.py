@@ -47,6 +47,8 @@ def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
 
 
 def create_root_mesh(location=(0,0,0)):
+    main_collection, rigid_joint_collection = init_collection()
+    
     if bpy.context.object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -94,6 +96,11 @@ def create_root_mesh(location=(0,0,0)):
     
     master_obj.location = location
     
+    # Unlink the from all collections
+    for collection in master_obj.users_collection:
+        collection.objects.unlink(master_obj)
+    main_collection.objects.link(master_obj)
+
     return master_obj
 
 #def get_matrix_neighbor_list_lr(matrix, row, col):
@@ -823,6 +830,8 @@ def create_rigid_from_guide_mesh(context):
     root_mesh_obj.display_type = 'WIRE'
     root_mesh_obj.show_in_front = True
     root_mesh_obj.hide_render = True
+#    rigid_joint_collection.objects.link(rigid_obj)
+#    master_collection.objects.unlink(rigid_obj)
     
     # scale root mesh
     root_mesh_obj.scale = (avg_bone_length*1.5, avg_bone_length*1.5, avg_bone_length*1.5)

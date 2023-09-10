@@ -591,12 +591,13 @@ def create_rigid_from_guide_mesh(context):
 
         bpy.ops.rigidbody.constraint_add(type='GENERIC_SPRING')
         
+        # always fixed twist
+        bpy.context.object.rigid_body_constraint.use_limit_ang_y = True
+        bpy.context.object.rigid_body_constraint.limit_ang_y_lower = 0
+        bpy.context.object.rigid_body_constraint.limit_ang_y_upper = 0
         if enable_angle_limit:
             bpy.context.object.rigid_body_constraint.use_limit_ang_x = True
-            bpy.context.object.rigid_body_constraint.use_limit_ang_y = True
             bpy.context.object.rigid_body_constraint.use_limit_ang_z = True
-            bpy.context.object.rigid_body_constraint.limit_ang_y_lower = 0
-            bpy.context.object.rigid_body_constraint.limit_ang_y_upper = 0
             bpy.context.object.rigid_body_constraint.limit_ang_x_lower = -rigid_circ_angle_single/180*math.pi
             bpy.context.object.rigid_body_constraint.limit_ang_x_upper = rigid_circ_angle_single/180*math.pi
             bpy.context.object.rigid_body_constraint.limit_ang_z_lower = -rigid_rad_angle_out_single/180*math.pi

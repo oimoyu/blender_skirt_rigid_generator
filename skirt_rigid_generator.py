@@ -148,6 +148,15 @@ def init_collection():
     return main_collection, rigid_joint_collection
 
 
+def delete_vg_from_all_obj(keyword):
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            # need to use "[:] to copy new list, cause the loop relies on the index"
+            for vg in obj.vertex_groups[:]:
+                if keyword in vg.name:
+                    obj.vertex_groups.remove(vg)
+
+
 def create_guide_mesh(context):
     settings = context.scene.skirt_rigid_panel_settings
     h_num = settings.h_num
@@ -995,10 +1004,17 @@ class ClearAllOperator(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        all_obj = bpy.data.objects
-        for obj in all_obj:
-            if obj.get('is_skirt_rigid_gen'):
-                bpy.data.objects.remove(obj, do_unlink=True)
+        all_addon_obj_list = [temp for temp in bpy.data.objects if temp.get('is_skirt_rigid_gen')]
+        obj_with_id_list = [temp for temp in all_addon_obj_list if temp.get('skirt_rigid_gen_id')]
+        selected_object_group = group_by_attr(obj_with_id_list, "skirt_rigid_gen_id")
+        
+        for obj in all_addon_obj_list:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        
+        for temp in list(selected_object_group):
+            md5_str = temp.split("_")[-1]
+            delete_vg_from_all_obj(md5_str)
+
         # TODO:also check for rigid body collection
         return {'FINISHED'}
 
@@ -1270,14 +1286,18 @@ class HandleRigidJointOperator(bpy.types.Operator):
             bpy.context.view_layer.objects.active = None
             
         obj_list = [temp for temp in bpy.data.objects if temp.get('skirt_rigid_gen_id') == self.skirt_rigid_gen_id ]
-        for obj in obj_list:
-            if self.action == 'delete':
+        md5_str = self.skirt_rigid_gen_id.split("_")[-1]
+        
+        if self.action == 'delete':
+            for obj in obj_list:
                 bpy.data.objects.remove(obj, do_unlink=True)
-                continue
+            delete_vg_from_all_obj(md5_str)
             
-            if self.action == 'select':
+        if self.action == 'select':
+            for obj in obj_list:
                 if not self.obj_type:
                     obj.select_set(True)
+                    bpy.context.view_layer.objects.active = obj
                 else:
                     if self.obj_type == 'all_joint' and 'joint' in obj.get('skirt_rigid_type', ''):
                         obj.select_set(True)
@@ -1286,25 +1306,17 @@ class HandleRigidJointOperator(bpy.types.Operator):
                         if obj.get('skirt_rigid_type') == self.obj_type:
                             obj.select_set(True)
                             bpy.context.view_layer.objects.active = obj
-                continue
-            
-            if obj.type == 'ARMATURE':
-                continue
-            
-            if self.action == 'show':
+                            
+        if self.action == 'show':
+            for obj in obj_list:
                 obj.hide_viewport = False
                 obj.hide_set(False)
-                continue
-#                # also set collection in case user set
-#                if rigid_joint_collection_name in bpy.data.collections:
-#                    rigid_joint_collection = bpy.data.collections[rigid_joint_collection_name]
-#                    rigid_joint_collection.hide_viewport = False
-#                    # there is no api for 'eye' button hide/show collection
                 
-            if self.action == 'hide':
+        if self.action == 'hide':
+            for obj in obj_list:
+                if obj.type == 'ARMATURE':
+                    continue
                 obj.hide_viewport = True
-                continue
-
             
         return {'FINISHED'}
 
@@ -1480,7 +1492,6 @@ def unregister():
 if __name__ == "__main__":
     
     register()
-
 
 
 

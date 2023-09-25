@@ -48,6 +48,8 @@ def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
 
 def create_root_mesh(location=(0,0,0)):
     main_collection, rigid_joint_collection = init_collection()
+    bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+    bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
     
     if bpy.context.object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -79,8 +81,6 @@ def create_root_mesh(location=(0,0,0)):
 
         # in some unknown blender case, will be set to edit mode after "bpy.ops.object.text_add()"
         bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
-        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
         
         text_object = bpy.context.active_object
         text_object.data.body = key.capitalize()

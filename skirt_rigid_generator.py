@@ -76,6 +76,12 @@ def create_root_mesh(location=(0,0,0)):
     text_obj_list = []
     for key, value in face_orientations.items():
         bpy.ops.object.text_add()
+
+        # in some unknown blender case, will be set to edit mode after "bpy.ops.object.text_add()"
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        
         text_object = bpy.context.active_object
         text_object.data.body = key.capitalize()
         text_object.rotation_euler = [radians(angle) for angle in value[1]]

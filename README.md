@@ -16,4 +16,4 @@ this script is written and tested in blender 4.0.2(should be compatible with 3.x
 
 the rigid body object and joint object is available in "rigid&joint" collection
 
-DEMO VIDEO:https://www.bilibili.com/video/BV1Mc411T7mC
+DEMO VIDEO:https://www.bilibili.com/video/BV1yN4y1h7R3

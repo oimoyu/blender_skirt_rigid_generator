@@ -6,14 +6,13 @@
 
 #### Blender rigid body simulation is unstable, it will crash in an indeterminate way when undo(ctrl+z) or animation playback(shift+space), please save the file before doing these two operations
 
-this script is written and tested in blender 3.6.2
+this script is written and tested in blender 4.0.2(should be compatible with 3.x)
 
 ## How to use
-
-* 1.click the "Generate Guide Mesh"(do not add or delete vertex in this mesh)
-* 2.adjust the guide mesh to fit the skirt mesh
-* 3.select the guide mesh and click the "Generate Rigid Body"
-* 4.add "Child of" constraint to the root bone to follow the character
+* Got a armature with bone which you want to add physics, the physics bone should connected by parent relationship to become chains, and the root of the chain should be child of a controller or character torso。
+* enter armature pose mode
+* select the bone chains you want to add physics
+* click "Generate Rigid Body"
 
 the rigid body object and joint object is available in "rigid&joint" collection
 

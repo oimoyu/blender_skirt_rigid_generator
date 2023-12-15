@@ -810,7 +810,7 @@ class SkirtRigidGenGeneratePanel(bpy.types.Panel):
         col = split.column()
         col.prop(settings, "basename", text="")
         
-        rigid_box.label(text="Rigid Size")
+        rigid_box.label(text="Rigid Size", icon="SNAP_FACE_CENTER")
         rigid_size_box = rigid_box.box()
         rigid_size_box.row().label(text="Rigid Size Type")
         rigid_size_box.row().prop(settings, "rigid_size_type",expand=True)
@@ -823,7 +823,7 @@ class SkirtRigidGenGeneratePanel(bpy.types.Panel):
         col.label(text="Thickness")
         col.prop(settings, "rigid_thickness", text="")
         
-        rigid_box.label(text="Angle Limit")
+        rigid_box.label(text="Angle Limit", icon="RESTRICT_SELECT_ON")
         rigid_angle_limit_box = rigid_box.box()
         rigid_angle_limit_box.row().label(text="Angle Limit Type")
         rigid_angle_limit_box.row().prop(settings, "angle_limit_type",expand=True)
@@ -833,7 +833,7 @@ class SkirtRigidGenGeneratePanel(bpy.types.Panel):
         rigid_angle_limit_box.row().prop(settings, "rigid_rad_angle_in", text="Radial Angle In")
         rigid_angle_limit_box.row().prop(settings, "rigid_rad_angle_out", text="Radial Angle Out")
 
-        rigid_box.label(text="Spring setting")
+        rigid_box.label(text="Spring setting", icon="GP_SELECT_STROKES")
         rigid_spring_setting_box = rigid_box.box()
         
         rigid_spring_setting_box.row().label(text="Spring Setting Type")
@@ -846,9 +846,20 @@ class SkirtRigidGenGeneratePanel(bpy.types.Panel):
         col = split.column()
         col.label(text="Damping")
         col.prop(settings, "chain_spring_damping", text="")
-            
+
+        rigid_box.label(text="Rigid setting", icon="SNAP_VOLUME")
+        rigid_setting_box = rigid_box.box()
+        col = rigid_setting_box.column()
+        split = col.split(factor=0.5)
+        col = split.column()
+        col.label(text="Mass(Kg)")
+        col.prop(settings, "rigid_mass", text="")
+        col = split.column()
+        col.label(text="Damping")
+        col.prop(settings, "rigid_damping", text="")
+
         rigid_box.row().prop(settings, "disable_self_collision")
-            
+
         row = rigid_box.row()
         row.scale_y = 2.0
         row.operator("skirt_rigid_gen.create_rigid_from_bone", text="Generate Rigid Body", icon="MESH_CUBE")
@@ -1300,4 +1311,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-

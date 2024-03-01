@@ -1,6 +1,7 @@
 # Blender addon generate rigid for skirt or hair
 
 ## Notice
+#### Untill the blender 4.0, due to the blender rigid body crash bug and uncontroable, this code will not ensure anything. Do not use this in your product environment.
 
 #### code is not be optimized, please save before using
 
